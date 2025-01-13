@@ -77,10 +77,29 @@ function getImage(req: IncomingMessage, res: Response) {
    })
 }
 
+function getSsrComponent(req: IncomingMessage, res: Response) {
+   const filePath = path.join(import.meta.dirname, 'component.html')
+   readFile(filePath, 'utf-8', (err, data) => {
+      if (err) {
+         res.writeHead(500, { 'content-type': 'text/plain' })
+         res.end()
+         console.log(err)
+      }
+
+      res.writeHead(200, { 'content-type': 'text/html' })
+      res.end(data)
+   })
+}
+
 const server = createServer(async (req, res) => {
    const regex = /\/images\//
    if (regex.test(req.url!)) {
       return getImage(req, res)
+   }
+
+   if (req.url === '/get-ssr-component') {
+      getSsrComponent(req, res)
+      return
    }
 
    if (req.method === 'GET') {
