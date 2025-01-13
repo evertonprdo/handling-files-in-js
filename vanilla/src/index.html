@@ -11,8 +11,8 @@
          img {
             display: block;
             margin-top: 20px;
-            height: 150px;
-            width: 150px;
+            height: 250px;
+            width: 250px;
             object-fit: cover;
          }
       </style>
@@ -24,8 +24,11 @@
          id="file"
       />
       <button id="any-id">Run</button>
+      <button id="last-img">Get last image</button>
+      <img id="preview" />
       <script>
          var image
+         var lastImgName
 
          async function handleFileUpload(file) {
             const formData = new FormData()
@@ -51,31 +54,37 @@
             image = this.files[0]
          })
 
+         const img = document.getElementById('preview')
+         const btnGet = document.getElementById('last-img')
+         btnGet.addEventListener('click', async () => {
+            if (!lastImgName) {
+               window.alert('Please, send a image')
+               return
+            }
+            img.src = `http://localhost:3333/images/${lastImgName}`
+         })
+
          const btn = document.getElementById('any-id')
          btn.addEventListener('click', async (e) => {
-            const chunkSize = 1024
-            const fileBuffer = await image.arrayBuffer()
-            const total = Math.ceil(fileBuffer.byteLength / chunkSize)
-
-            console.log(
-               `File: ${image.name}, Size: ${fileBuffer.byteLength} bytes, Total chunks: ${total}`,
-            )
-
-            const chunks = []
-            for (let i = 0; i < total; i++) {
-               const start = i * chunkSize
-               const end = Math.min(start + chunkSize, fileBuffer.byteLength)
-               const fragment = fileBuffer.slice(start, end)
-
-               chunks.push(fragment)
+            if (!image) {
+               window.alert('Please, send a image!')
+               return
             }
 
-            const reconstructedBuffer = new Blob(chunks, { type: image.type })
-            const reconstructedUrl = URL.createObjectURL(reconstructedBuffer)
+            const reader = new FileReader()
 
-            const img = document.createElement('img')
-            img.src = reconstructedUrl
-            document.body.appendChild(img)
+            reader.onload = (ev) => {
+               const result = ev.target.result
+
+               fetch('http://localhost:3333', {
+                  method: 'POST',
+                  body: result,
+               })
+                  .then((result) => result.text())
+                  .then((data) => (lastImgName = data))
+            }
+
+            reader.readAsDataURL(image)
          })
       </script>
    </body>
