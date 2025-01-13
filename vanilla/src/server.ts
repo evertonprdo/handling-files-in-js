@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs'
+import { readFile } from 'node:fs'
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
@@ -22,92 +22,29 @@ function getIndex(req: IncomingMessage, res: Response) {
    })
 }
 
-async function handleFile(req: IncomingMessage, res: Response) {
-   const buffers: any = []
+function getFavicon(req: IncomingMessage, res: Response) {
+   const filePath = path.join(process.cwd(), 'public', 'favicon.ico')
 
-   for await (const chunk of req) {
-      buffers.push(chunk)
-   }
-
-   const body = Buffer.concat(buffers).toString()
-
-   const matches = body.match(/^data:(.+);base64,(.+)$/)
-   if (!matches) {
-      throw new Error('Formato Base64 inválido')
-   }
-
-   const type = matches[1].split('/')[1]
-   const contentBase64 = matches[2]
-
-   const buffer = Buffer.from(contentBase64, 'base64')
-   const imageName = `${new Date().getTime()}.${type}`
-
-   writeFile(
-      path.join(import.meta.dirname, 'tmp', imageName),
-      buffer,
-      (err) => err && console.log(err),
-   )
-
-   res.end(imageName)
-}
-
-function getImage(req: IncomingMessage, res: Response) {
-   const paths = req.url?.split('/')!
-   const imgName = paths[paths.length - 1]
-
-   const filePath = path.join(import.meta.dirname, 'tmp', imgName)
    readFile(filePath, (err, data) => {
       if (err) {
-         res.writeHead(500, { 'content-type': 'text/plain' })
-         res.end()
-         console.log(err)
+         res.writeHead(404, { 'content-type': 'text/plain' })
+         res.end('Favicon not found')
+         return
       }
 
-      const ext = path.extname(imgName).toLowerCase()
-      const mimeType =
-         {
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.png': 'image/png',
-            '.gif': 'image/gif',
-         }[ext] || 'application/octet-stream'
-
-      res.writeHead(200, { 'content-type': mimeType })
-      res.end(data)
-   })
-}
-
-function getSsrComponent(req: IncomingMessage, res: Response) {
-   const filePath = path.join(import.meta.dirname, 'component.html')
-   readFile(filePath, 'utf-8', (err, data) => {
-      if (err) {
-         res.writeHead(500, { 'content-type': 'text/plain' })
-         res.end()
-         console.log(err)
-      }
-
-      res.writeHead(200, { 'content-type': 'text/html' })
+      res.writeHead(200, { 'content-type': 'image/x-icon' })
       res.end(data)
    })
 }
 
 const server = createServer(async (req, res) => {
-   const regex = /\/images\//
-   if (regex.test(req.url!)) {
-      return getImage(req, res)
-   }
-
-   if (req.url === '/get-ssr-component') {
-      getSsrComponent(req, res)
+   if (req.method === 'GET' && req.url === '/') {
+      getIndex(req, res)
       return
    }
 
-   if (req.method === 'GET') {
-      return getIndex(req, res)
-   }
-
-   if (req.method === 'POST') {
-      await handleFile(req, res)
+   if (req.method === 'GET' && req.url === '/favicon.ico') {
+      getFavicon(req, res)
       return
    }
 

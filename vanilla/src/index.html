@@ -15,58 +15,89 @@
             width: 250px;
             object-fit: cover;
          }
-      </style>
-   </head>
-   <body>
-      <input
-         type="file"
-         id="file"
-         name="file"
-      />
-      <button id="ssr-component">Get SSR Component</button>
-      <div id="preview-ssr"></div>
-      <script>
-         var image
 
-         async function handleFileUpload(file) {
-            const formData = new FormData()
-            formData.append('file', file)
+         #dropzone {
+            display: flex;
+            justify-content: center;
+            align-items: center;
 
-            try {
-               const response = await fetch('http://localhost:3333', {
-                  method: 'POST',
-                  body: formData,
-               })
-
-               const result = await response.json()
-               console.log(result)
-            } catch (error) {
-               console.error('file sending error:', error)
-            }
+            width: 250px;
+            height: 250px;
+            border: 1px solid black;
+            border-radius: 8px;
          }
 
-         const iptFile = document.getElementById('file')
-         iptFile.addEventListener('change', function (e) {
-            e.preventDefault()
+         #absolute {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
 
-            image = this.files[0]
-         })
+            height: 100px;
+            width: 100px;
+            background-color: aqua;
+            border-radius: 50%;
 
-         const ssrPreview = document.getElementById('preview-ssr')
-         const ssrBtn = document.getElementById('ssr-component')
-         ssrBtn.addEventListener('click', async () => {
-            const result = await fetch(
-               'http://localhost:3333/get-ssr-component',
-               {
-                  method: 'GET',
-               },
-            )
+            top: 50vh;
+            left: 110px;
+         }
+      </style>
+      <link
+         rel="shortcut icon"
+         href="favicon.ico"
+         type="image/x-icon"
+      />
+   </head>
+   <body>
+      <div id="dropzone">
+         <span>Drop a video file here</span>
+      </div>
+      <video
+         id="video"
+         width="640"
+         height="360"
+         loop
+      >
+         Your browser does not support the video element
+      </video>
+      <div
+         id="absolute"
+         onclick="playPause()"
+      >
+         Play/Pause
+      </div>
 
-            const data = await result.text()
-            const div = document.createElement('div')
-            div.innerHTML = data
-            ssrPreview.appendChild(div)
-         })
+      <script>
+         document.addEventListener('DOMContentLoaded', () => {})
+         const dropzone = document.getElementById('dropzone')
+         dropzone.ondragover = dropzone.ondragenter = (event) => {
+            event.stopPropagation()
+            event.preventDefault()
+         }
+
+         dropzone.ondrop = async (event) => {
+            event.stopPropagation()
+            event.preventDefault()
+
+            const filesArray = event.dataTransfer.files
+            sendFile(filesArray[0])
+         }
+
+         const video = document.getElementById('video')
+         function sendFile(blob) {
+            const obj_url = URL.createObjectURL(blob)
+
+            video.src = obj_url
+            video.play()
+         }
+
+         function playPause() {
+            if (video.paused) {
+               video.play()
+               return
+            }
+            video.pause()
+         }
       </script>
    </body>
 </html>
