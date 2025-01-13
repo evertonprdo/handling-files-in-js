@@ -8,55 +8,25 @@
       />
       <title>Document</title>
       <style>
-         #preview > img {
+         img {
+            display: block;
             margin-top: 20px;
             height: 150px;
             width: 150px;
             object-fit: cover;
          }
-
-         #dropbox,
-         #modified-img {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-
-            height: 250px;
-            width: 250px;
-            border: 1px solid rgba(12, 30, 51, 0.3);
-            border-radius: 8px;
-            margin-block: 8px;
-
-            background-position: center;
-            background-repeat: no-repeat;
-            background-size: cover;
-
-            & > span {
-               text-transform: uppercase;
-            }
-         }
       </style>
    </head>
    <body>
-      <div id="dropbox">
-         <span>Drag a file img here</span>
-      </div>
-      <div id="modified-img"></div>
-      <form
-         id="form"
-         action="GET"
-      >
-         <input
-            type="file"
-            name="file"
-            id="file"
-            multiple
-         />
-         <button id="send">Send</button>
-      </form>
-
-      <div id="preview"></div>
+      <input
+         type="file"
+         name="file"
+         id="file"
+      />
+      <button id="any-id">Run</button>
       <script>
+         var image
+
          async function handleFileUpload(file) {
             const formData = new FormData()
             formData.append('file', file)
@@ -74,72 +44,38 @@
             }
          }
 
-         const form = document.getElementById('form')
-         const btn = document.getElementById('send')
-
          const iptFile = document.getElementById('file')
-         const thumbnails = document.getElementById('preview')
-
-         iptFile.addEventListener('input', () => {
-            thumbnails.innerHTML = ''
-            for (const file of iptFile.files) {
-               const url = URL.createObjectURL(file)
-               thumbnails.innerHTML += `<img src="${url}" />`
-            }
-         })
-
-         form.onsubmit = (ev) => ev.preventDefault()
-
-         btn.addEventListener('click', (ev) => {
-            iptFile.click()
-         })
-
-         const dropbox = document.getElementById('dropbox')
-         const modifiedImg = document.getElementById('modified-img')
-
-         dropbox.addEventListener('dragenter', (e) => {
-            e.stopPropagation()
+         iptFile.addEventListener('change', function (e) {
             e.preventDefault()
 
-            // console.log(e)
+            image = this.files[0]
          })
 
-         dropbox.addEventListener('dragover', (e) => {
-            e.stopPropagation()
-            e.preventDefault()
-         })
+         const btn = document.getElementById('any-id')
+         btn.addEventListener('click', async (e) => {
+            const chunkSize = 1024
+            const fileBuffer = await image.arrayBuffer()
+            const total = Math.ceil(fileBuffer.byteLength / chunkSize)
 
-         dropbox.addEventListener('drop', (e) => {
-            e.stopPropagation()
-            e.preventDefault()
-            dropbox.innerHTML = ''
+            console.log(
+               `File: ${image.name}, Size: ${fileBuffer.byteLength} bytes, Total chunks: ${total}`,
+            )
 
-            const dt = e.dataTransfer
-            const files = dt.files
+            const chunks = []
+            for (let i = 0; i < total; i++) {
+               const start = i * chunkSize
+               const end = Math.min(start + chunkSize, fileBuffer.byteLength)
+               const fragment = fileBuffer.slice(start, end)
 
-            const blobURL = URL.createObjectURL(files[0])
-            dropbox.style.backgroundImage = `url(${blobURL})`
-
-            const reader = new FileReader()
-
-            reader.onload = (e) => {
-               const buffer = e.target.result
-
-               const uint8Array = new Uint8Array(buffer)
-
-               const index = Math.floor(uint8Array.length / 2)
-
-               for (i = index; i < uint8Array.length; i++) {
-                  uint8Array[i] = uint8Array[i] ^ 255
-               }
-
-               const blob = new Blob([uint8Array], { type: files[0].type })
-
-               const modifiedImageURL = URL.createObjectURL(blob)
-               modifiedImg.style.backgroundImage = `url(${modifiedImageURL})`
+               chunks.push(fragment)
             }
 
-            reader.readAsArrayBuffer(files[0])
+            const reconstructedBuffer = new Blob(chunks, { type: image.type })
+            const reconstructedUrl = URL.createObjectURL(reconstructedBuffer)
+
+            const img = document.createElement('img')
+            img.src = reconstructedUrl
+            document.body.appendChild(img)
          })
       </script>
    </body>
