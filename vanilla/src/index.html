@@ -13,8 +13,27 @@
          href="favicon.ico"
          type="image/x-icon"
       />
+
+      <style>
+         img {
+            width: 250px;
+            height: 250px;
+            object-fit: cover;
+         }
+      </style>
    </head>
    <body>
-      <script></script>
+      <img src="http://localhost:3333/image-buffer" />
+      <script>
+         document.addEventListener('DOMContentLoaded', async () => {
+            const result = await fetch('http://localhost:3333/image-base64')
+            const { image, mimeType } = await result.json()
+
+            const img = new Image()
+            img.src = `data:${mimeType};base64,${image}`
+
+            document.body.appendChild(img)
+         })
+      </script>
    </body>
 </html>

@@ -1,40 +1,85 @@
-import fsPromises from 'node:fs/promises'
+import http from 'node:http'
+import fs from 'node:fs/promises'
 import path from 'node:path'
 
-const dirPath = path.join(import.meta.dirname, 'tmp')
-const filePath = path.join(dirPath, 'sample.png')
+async function index(req: http.IncomingMessage, res: http.ServerResponse) {
+   try {
+      const htmlPath = path.join(import.meta.dirname, 'index.html')
+      const html = await fs.readFile(htmlPath, { encoding: 'utf-8' })
 
-const buffer = await fsPromises.readFile(filePath)
-const base64url = buffer.toString('base64url')
-
-const newFileTextPath = path.join(dirPath, 'sample.txt')
-const blobData = `data:image/png;base64,${base64url}`
-
-await fsPromises.writeFile(newFileTextPath, blobData)
-
-const blobReaderBuffer = await fsPromises.readFile(newFileTextPath, {
-   encoding: 'utf-8',
-})
-
-async function saveFileFromObjectURL(data: string) {
-   const regExp = /^data:([^;]+);base64,/
-   const match = data.match(regExp)
-
-   if (!match) {
-      throw new Error()
+      res.writeHead(200, { 'content-type': 'text/html' })
+      res.end(html)
+   } catch (error) {
+      res.writeHead(500, { 'content-type': 'text/plain' })
+      res.end()
    }
-
-   const mimeType = match[1]
-   const base64Data = data.split(',')[1]
-
-   const [type, ext] = mimeType.split('/')
-
-   if (type !== 'image') {
-      throw new Error()
-   }
-
-   const newFile = path.join(dirPath, `${new Date().getTime()}.${ext}`)
-   await fsPromises.writeFile(newFile, base64Data, { encoding: 'base64' })
 }
 
-await saveFileFromObjectURL(blobReaderBuffer)
+async function favicon(req: http.IncomingMessage, res: http.ServerResponse) {
+   try {
+      const faviconPath = path.join(process.cwd(), 'public', 'favicon.ico')
+      const buffer = await fs.readFile(faviconPath)
+
+      res.writeHead(200, { 'content-type': 'image/x-icon' })
+      res.end(buffer)
+   } catch (error) {
+      res.writeHead(500, { 'content-type': 'text/plain' })
+      res.end()
+   }
+}
+
+async function getImgBuffer(
+   req: http.IncomingMessage,
+   res: http.ServerResponse,
+) {
+   try {
+      const faviconPath = path.join(import.meta.dirname, 'tmp', 'sample.png')
+      const buffer = await fs.readFile(faviconPath)
+
+      res.writeHead(200, { 'content-type': 'image/png' })
+      res.end(buffer)
+   } catch (error) {
+      res.writeHead(500, { 'content-type': 'text/plain' })
+      res.end()
+   }
+}
+
+async function getImgBase64(
+   req: http.IncomingMessage,
+   res: http.ServerResponse,
+) {
+   try {
+      const faviconPath = path.join(import.meta.dirname, 'tmp', 'sample.png')
+      const base64 = await fs.readFile(faviconPath, { encoding: 'base64' })
+
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ image: base64, type: 'image/png' }))
+   } catch (error) {
+      console.log(error)
+      res.writeHead(500, { 'content-type': 'text/plain' })
+      res.end()
+   }
+}
+
+const server = http.createServer((req, res) => {
+   if (req.url === '/' && req.method === 'GET') {
+      return index(req, res)
+   }
+
+   if (req.url === '/favicon.ico' && req.method === 'GET') {
+      return favicon(req, res)
+   }
+
+   if (req.url === '/image-buffer' && req.method === 'GET') {
+      return getImgBuffer(req, res)
+   }
+
+   if (req.url === '/image-base64' && req.method === 'GET') {
+      return getImgBase64(req, res)
+   }
+
+   res.writeHead(404)
+   res.end()
+})
+
+server.listen(3333, () => console.log('Server running!'))
