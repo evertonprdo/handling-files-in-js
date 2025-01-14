@@ -1,55 +1,19 @@
-import { readFile } from 'node:fs'
-import { createServer } from 'node:http'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import fsPromises from 'node:fs/promises'
 import path from 'node:path'
 
-type Response = ServerResponse<IncomingMessage> & {
-   req: IncomingMessage
-}
+const dirPath = path.join(import.meta.dirname, 'tmp')
+await fsPromises.mkdir(dirPath, { recursive: true })
 
-function getIndex(req: IncomingMessage, res: Response) {
-   const filePath = path.join(import.meta.dirname, 'index.html')
-
-   readFile(filePath, 'utf-8', (err, data) => {
-      if (err) {
-         res.writeHead(500, { 'content-type': 'text/plain' })
-         res.end()
-         console.log(err)
-      }
-
-      res.writeHead(200, { 'content-type': 'text/html' })
-      res.end(data)
+for (let i = 0; i < 5; i++) {
+   const filePath = path.join(dirPath, `sample-${i}.txt`)
+   await fsPromises.writeFile(filePath, 'Hello', {
+      encoding: 'utf-8',
    })
 }
 
-function getFavicon(req: IncomingMessage, res: Response) {
-   const filePath = path.join(process.cwd(), 'public', 'favicon.ico')
+const filesInDir = await fsPromises.readdir(dirPath)
 
-   readFile(filePath, (err, data) => {
-      if (err) {
-         res.writeHead(404, { 'content-type': 'text/plain' })
-         res.end('Favicon not found')
-         return
-      }
-
-      res.writeHead(200, { 'content-type': 'image/x-icon' })
-      res.end(data)
-   })
+for (const fileName of filesInDir) {
+   const filePath = path.join(dirPath, fileName)
+   await fsPromises.appendFile(filePath, ' World!', { encoding: 'utf-8' })
 }
-
-const server = createServer(async (req, res) => {
-   if (req.method === 'GET' && req.url === '/') {
-      getIndex(req, res)
-      return
-   }
-
-   if (req.method === 'GET' && req.url === '/favicon.ico') {
-      getFavicon(req, res)
-      return
-   }
-
-   res.writeHead(404)
-   res.end()
-})
-
-server.listen(3333, () => console.log('Server on!'))
