@@ -6,12 +6,16 @@ const readableStream = fs.createReadStream(
    { highWaterMark: 15 },
 )
 
-readableStream.on('data', (chunk) => {
-   console.log(`Received: ${chunk.toString().split('\n')[0]}`)
-   readableStream.pause()
-   console.log('There will be no additional data for 1 second.\n')
-   setTimeout(() => {
-      console.log('Now data will start flowing again.\n')
-      readableStream.resume()
-   }, 1000)
+const chunks: Buffer[] = []
+
+readableStream.on('readable', () => {
+   let chunk: Buffer
+   while (null !== (chunk = readableStream.read(8))) {
+      console.log('Read: ' + chunk.toString())
+      chunks.push(chunk)
+   }
+})
+
+readableStream.on('end', () => {
+   console.log(`\nResult:\n${Buffer.concat(chunks).toString()}`)
 })
