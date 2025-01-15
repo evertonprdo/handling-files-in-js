@@ -1,21 +1,31 @@
 import fs from 'node:fs'
-import path from 'node:path'
+import { addAbortSignal } from 'node:stream'
 
-const readableStream = fs.createReadStream(
-   path.join(import.meta.dirname, 'sample.txt'),
-   { highWaterMark: 15 },
+const controller = new AbortController()
+setTimeout(() => controller.abort(), 1000)
+
+const stream = addAbortSignal(
+   controller.signal,
+   fs.createReadStream('./src/object.json', { highWaterMark: 8 }),
 )
 
-const chunks: Buffer[] = []
+function process(chunk: Buffer) {
+   return new Promise((res) => {
+      setTimeout(() => res(chunk.toString()), 100)
+   })
+}
 
-readableStream.on('readable', () => {
-   let chunk: Buffer
-   while (null !== (chunk = readableStream.read(8))) {
-      console.log('Read: ' + chunk.toString())
-      chunks.push(chunk)
+;(async () => {
+   try {
+      for await (const chunk of stream) {
+         const value = await process(chunk)
+         console.log(value)
+      }
+   } catch (e) {
+      if (e.name === 'AbortError') {
+         console.log('Operation abort')
+      } else {
+         throw e
+      }
    }
-})
-
-readableStream.on('end', () => {
-   console.log(`\nResult:\n${Buffer.concat(chunks).toString()}`)
-})
+})()
