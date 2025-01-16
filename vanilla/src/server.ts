@@ -1,83 +1,57 @@
-import fs from 'node:fs'
+import http from 'node:http'
 import path from 'node:path'
+import fs from 'node:fs/promises'
 
-/**
- * The script reads and splits the file 'sample.csv' by line, using '\n' as the limit, each line of buffer is converted to string and put in an array.
- *
- * The script uses a Readable Stream with very low highWaterMark, to force the script to deal with different problems, which are:
- * - no boundary found in the chunk;
- * - more than one boundary found in the chunk;
- * - missing the last boundary
- *
- * To deal with no boundary found in the chunk: a cache of the unprocessed bytes between the read chunks is used.
- * To deal with more than one boundary found in the chunk: a recursive function is used. Each limit triggers the callback that receives the line and calls the function again, until there are no more limits.
- * To deal with missing the last boundary, in the 'end' event, unprocessedBytes is called with the callback if length > 0
- *
- * Note: The script doesn't handle a double quotes string
- */
+import { ProcessCSV } from './utils/process-csv.ts'
 
-const initOfScript = new Date().getTime()
+async function index(req: http.IncomingMessage, res: http.ServerResponse) {
+   try {
+      const htmlPath = path.join(import.meta.dirname, 'index.html')
+      const html = await fs.readFile(htmlPath, { encoding: 'utf-8' })
 
-const filePath = path.join(import.meta.dirname, 'sample.csv')
-const readableCsv = fs.createReadStream(filePath, { highWaterMark: 8 })
-
-const lines: string[] = []
-let unprocessedBytes: Buffer = Buffer.alloc(0)
-
-function handleNewLine(line: string) {
-   lines.push(line)
+      res.writeHead(200, { 'content-type': 'text/html' })
+      res.end(html)
+   } catch (error) {
+      res.writeHead(500, { 'content-type': 'text/plain' })
+      res.end()
+   }
 }
 
-readableCsv.on('readable', function () {
-   let chunk: Buffer
+async function favicon(req: http.IncomingMessage, res: http.ServerResponse) {
+   try {
+      const faviconPath = path.join(process.cwd(), 'public', 'favicon.ico')
+      const buffer = await fs.readFile(faviconPath)
 
-   function handleBoundary(
-      prev: Buffer,
-      next: Buffer,
-      callback: (line: string) => void,
-   ) {
-      const boundary = 10
-      const boundaryIndex = next.findIndex((byte) => byte === boundary)
+      res.writeHead(200, { 'content-type': 'image/x-icon' })
+      res.end(buffer)
+   } catch (error) {
+      res.writeHead(500, { 'content-type': 'text/plain' })
+      res.end()
+   }
+}
 
-      if (boundaryIndex >= 0) {
-         const beforeBoundary = next.subarray(0, boundaryIndex)
-         const afterBoundary = next.subarray(boundaryIndex + 1)
-
-         const line = Buffer.concat([prev, beforeBoundary]).toString()
-         callback(line)
-
-         prev = Buffer.alloc(0)
-         next = afterBoundary
-
-         return handleBoundary(prev, next, callback)
-      }
-
-      next = Buffer.concat([prev, next])
-      prev = Buffer.alloc(0)
-
-      return next
+const server = http.createServer(async (request, response) => {
+   if (request.url === '/' && request.method === 'GET') {
+      return index(request, response)
    }
 
-   while ((chunk = this.read()) !== null) {
-      const remainingBuffer = handleBoundary(
-         unprocessedBytes,
-         chunk,
-         handleNewLine,
-      )
-
-      unprocessedBytes = remainingBuffer
+   if (request.url === '/favicon.ico' && request.method === 'GET') {
+      return favicon(request, response)
    }
+
+   const contentType = request.headers['content-type']
+
+   if (contentType !== 'text/csv') {
+      response.writeHead(400, { message: 'Only text/csv' })
+      response.end()
+      return
+   }
+
+   const processCSV = new ProcessCSV(request)
+   const result = await processCSV.run()
+
+   response.writeHead(200)
+   response.end(JSON.stringify(result))
 })
 
-readableCsv.on('end', () => {
-   const line = unprocessedBytes.toString()
-   if (line.length > 0) {
-      handleNewLine(line)
-   }
-
-   console.log(lines)
-   const endOfScript = new Date().getTime()
-
-   console.log('\n============= end =============\n')
-   console.log('Running time: ', `${endOfScript - initOfScript}ms`)
-})
+server.listen(3333, () => console.log('Server running'))

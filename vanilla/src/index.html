@@ -13,6 +13,108 @@
          href="favicon.ico"
          type="image/x-icon"
       />
+
+      <style>
+         table {
+            margin-top: 1rem;
+            border-collapse: collapse;
+         }
+
+         td,
+         th {
+            border: 1px solid gray;
+            padding: 0.5rem;
+         }
+      </style>
    </head>
-   <body></body>
+   <body>
+      <input
+         type="file"
+         name="csv"
+         id="csv"
+         accept="text/csv"
+      />
+      <button id="send">Send</button>
+      <button id="next">Next</button>
+
+      <table id="table"></table>
+
+      <script>
+         let memoryHeader
+         let memoryData
+
+         let currentIndex = 0
+
+         const iptFile = document.getElementById('csv')
+         const btnSend = document.getElementById('send')
+         const btnNext = document.getElementById('next')
+         const table = document.getElementById('table')
+
+         btnNext.addEventListener('click', () => {
+            currentIndex++
+            buildTable()
+         })
+
+         btnSend.addEventListener('click', async () => {
+            if (iptFile.files.length === 0) {
+               return
+            }
+
+            try {
+               const response = await fetch('http://localhost:3333', {
+                  method: 'POST',
+                  headers: {
+                     'Content-Type': 'text/csv',
+                  },
+                  body: iptFile.files[0],
+               })
+
+               const data = await response.json()
+               memoryHeader = data[0]
+               memoryData = data.slice(1)
+
+               buildTable()
+            } catch (error) {
+               console.log(error)
+            }
+         })
+
+         function buildTable() {
+            const tHead = document.createElement('thead')
+            const trH = document.createElement('tr')
+
+            for (const cell of memoryHeader) {
+               const th = document.createElement('th')
+               th.innerText = cell
+
+               trH.appendChild(th)
+            }
+            tHead.appendChild(trH)
+
+            const tBody = document.createElement('tbody')
+
+            for (let i = currentIndex; i < currentIndex + 50; i++) {
+               if (!memoryData[i]) {
+                  currentIndex = 0
+                  break
+               }
+
+               const line = memoryData[i]
+               const tr = document.createElement('tr')
+
+               for (const cell of line) {
+                  const td = document.createElement('td')
+                  td.innerText = cell
+
+                  tr.appendChild(td)
+               }
+
+               tBody.appendChild(tr)
+            }
+
+            table.innerHTML = ''
+            table.append(tHead, tBody)
+         }
+      </script>
+   </body>
 </html>
